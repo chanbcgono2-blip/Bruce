@@ -12,7 +12,7 @@ namespace Project11
 {
     public class HealthBar
     {
-        private static Texture2D _pixelTexture;
+        public static Texture2D _pixelTexture;
         private int _maxHealth;
         private int _currentHealth;
         private int _width;

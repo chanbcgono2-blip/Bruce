@@ -10,13 +10,13 @@ namespace Project11
 {
     public class Hero : Sprite
     {
-
         private float _speed = 300f;
         private AnimationManager _anims = new();
         private Vector2 _minPos, _maxPos;
         private Dash _dash = new();
         private Vector2 _lastMovementDirection = Vector2.Zero;
         private Vector2 _dashDirection = Vector2.Zero;
+        private Collision _collision;
 
         private int _maxHealth = 100;
         private int _currentHealth;
@@ -24,6 +24,8 @@ namespace Project11
         public int MaxHealth => _maxHealth;
         public bool IsDead => _currentHealth <= 0;
 
+        // Collision size (adjust based on your sprite size)
+        private Vector2 _collisionSize = new Vector2(32, 32);
 
         public Hero() : base(Globals.Content.Load<Texture2D>("hero"), new Vector2(100, 100))
         {
@@ -40,24 +42,28 @@ namespace Project11
             _anims.AddAnimation(new Vector2(1, -1), new(heroTexture, 8, 8, 0.1f, 8));
         }
 
+        public void SetCollision(Collision collision)
+        {
+            _collision = collision;
+        }
+
         public void Update()
         {
+            Vector2 oldPosition = Position;
+
             // Update dash
             _dash.Update(Globals.TotalSeconds);
 
             // Check for dash input (only if not already dashing)
             if (!_dash.IsDashing && InputManager.DashPressed)
             {
-                // Get current movement input (keys being held)
                 Vector2 dashDirection = InputManager.GetMovementInput();
-                
-                // If no keys are held, use last movement direction
+
                 if (dashDirection == Vector2.Zero && _lastMovementDirection != Vector2.Zero)
                 {
                     dashDirection = _lastMovementDirection;
                 }
-                
-                // If we have a direction, start dash
+
                 if (dashDirection != Vector2.Zero)
                 {
                     if (_dash.TryStartDash(dashDirection))
@@ -67,31 +73,43 @@ namespace Project11
                 }
             }
 
-            // Handle dash movement (dash takes priority over normal movement)
+            // Handle dash movement
             if (_dash.IsDashing)
             {
                 Vector2 dashMovement = _dash.GetDashMovement(Globals.TotalSeconds, _minPos, _maxPos, Position);
-                Position += dashMovement;
-                Position = Vector2.Clamp(Position, _minPos, _maxPos);
-                
-                // Update animation based on dash direction
+                Vector2 newPosition = Position + dashMovement;
+
+                // Check collision
+                if (_collision != null)
+                {
+                    newPosition = _collision.GetCorrectedPosition(Position, newPosition, _collisionSize);
+                }
+
+                Position = Vector2.Clamp(newPosition, _minPos, _maxPos);
                 _anims.Update(_dashDirection);
             }
-            // Handle normal movement (only when not dashing)
+            // Handle normal movement
             else if (InputManager.Moving)
             {
                 Vector2 normalizedDirection = Vector2.Normalize(InputManager.Direction);
-                Position += normalizedDirection * _speed * Globals.TotalSeconds;
-                Position = Vector2.Clamp(Position, _minPos, _maxPos);
+                Vector2 newPosition = Position + normalizedDirection * _speed * Globals.TotalSeconds;
+
+                // Check collision
+                if (_collision != null)
+                {
+                    newPosition = _collision.GetCorrectedPosition(Position, newPosition, _collisionSize);
+                }
+
+                Position = Vector2.Clamp(newPosition, _minPos, _maxPos);
                 _anims.Update(InputManager.Direction);
-                _lastMovementDirection = InputManager.Direction; // Store last movement direction for dash
+                _lastMovementDirection = InputManager.Direction;
             }
             else
             {
-                // Play idle animation when not moving
                 _anims.Update(Vector2.Zero);
             }
         }
+
         public void TakeDamage(int damage)
         {
             _currentHealth = MathHelper.Clamp(_currentHealth - damage, 0, _maxHealth);
@@ -101,12 +119,12 @@ namespace Project11
         {
             _currentHealth = MathHelper.Clamp(_currentHealth + amount, 0, _maxHealth);
         }
+
         public void SetBounds(Point mapSize, Point tileSize)
         {
             _minPos = new Vector2(Origin.X, Origin.Y);
             _maxPos = new Vector2(mapSize.X - Origin.X, mapSize.Y - Origin.Y);
         }
-
 
         public void Draw()
         {

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 
 namespace Project11
 {
@@ -15,6 +16,8 @@ namespace Project11
         private HealthBar _healthBar;
         private Map _map;
         private Matrix _translation;
+        private bool _showCollisionDebug = false;
+
         public Matrix Translation => _translation;
 
         public void Init()
@@ -23,6 +26,7 @@ namespace Project11
             _coin = new(new(300, 300));
             _hero = new();
             _hero.SetBounds(_map.MapSize, _map.TileSize);
+            _hero.SetCollision(_map.Collision); // Connect collision system to hero
             _healthBar = new HealthBar(_hero.MaxHealth, 200, 20);
             CalculateTranslation();
         }
@@ -42,29 +46,46 @@ namespace Project11
             _coin.Update();
             _hero.Update();
 
-            var keyboardState = Microsoft.Xna.Framework.Input.Keyboard.GetState();
-            if (keyboardState.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.H))
+            var keyboardState = Keyboard.GetState();
+
+            // Health testing keys
+            if (keyboardState.IsKeyDown(Keys.H))
             {
                 _hero.Heal(1);
             }
-            if (keyboardState.IsKeyDown(Microsoft.Xna.Framework.Input.Keys.J))
+            if (keyboardState.IsKeyDown(Keys.J))
             {
                 _hero.TakeDamage(1);
             }
 
-            // Update health bar
-            _healthBar.SetHealth(_hero.Health);
+            // Toggle collision debug view with C key
+            if (keyboardState.IsKeyDown(Keys.C))
+            {
+                _showCollisionDebug = true;
+            }
+            else
+            {
+                _showCollisionDebug = false;
+            }
 
+            _healthBar.SetHealth(_hero.Health);
             CalculateTranslation();
         }
 
         public void Draw()
         {
             _map.Draw();
+
+            // Draw collision debug if enabled
+            if (_showCollisionDebug)
+            {
+                _map.DrawDebugCollision();
+            }
+
             _coin.Draw();
             _hero.Draw();
         }
-        
+
         public void DrawUI()
         {
             _healthBar.Draw();
